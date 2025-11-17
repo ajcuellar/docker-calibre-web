@@ -47,7 +47,7 @@ This software is a fork of library and licensed under the GPL v3 License.
 
 We utilise the docker manifest for multi-platform awareness. More information is available from docker [here](https://distribution.github.io/distribution/spec/manifest-v2-2/#manifest-list) and our announcement [here](https://blog.linuxserver.io/2019/02/21/the-lsio-pipeline-project/).
 
-Simply pulling `lscr.io/linuxserver/calibre-web:latest` should retrieve the correct image for your arch, but you can also pull specific arch images via tags.
+Simply pulling `ajcuellar/calibre-web:latest` should retrieve the correct image for your arch, but you can also pull specific version images via tags.
 
 The architectures supported by this image are:
 
