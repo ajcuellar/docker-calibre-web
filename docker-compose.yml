@@ -1,0 +1,16 @@
+services:
+  calibre-web:
+    build:
+      context: ..
+      dockerfile: docker-calibre-web/Dockerfile
+    container_name: calibre-web-ajcuellar
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Madrid
+    volumes:
+      - ./config:/config
+      - ./biblioteca:/biblioteca
+    restart: always
+    ports:
+      - 8084:8083

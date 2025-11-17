@@ -37,18 +37,15 @@ RUN \
     sqlite3 \
     xdg-utils && \
   echo "**** install calibre-web ****" && \
-  if [ -z ${CALIBREWEB_RELEASE+x} ]; then \
-    CALIBREWEB_RELEASE=$(curl -sX GET "https://api.github.com/repos/ajcuellar/calibre-web/releases/latest" \
-    | awk '/tag_name/{print $4;exit}' FS='[""]'); \
-  fi && \
-  curl -o \
-    /tmp/calibre-web.tar.gz -L \
-    https://github.com/ajcuellar/calibre-web/archive/${CALIBREWEB_RELEASE}.tar.gz && \
   mkdir -p \
-    /app/calibre-web && \
-  tar xf \
-    /tmp/calibre-web.tar.gz -C \
-    /app/calibre-web --strip-components=1 && \
+    /app/calibre-web
+
+# Copy local calibre-web source code
+COPY calibre-web/ /app/calibre-web/
+
+# Continue with installation
+RUN \
+  cd /app/calibre-web && \
   cd /app/calibre-web && \
   python3 -m venv /lsiopy && \
   pip install -U --no-cache-dir \
@@ -78,8 +75,8 @@ RUN \
     /var/tmp/* \
     /root/.cache
 
-# add local files
-COPY root/ /
+# add local files
+COPY docker-calibre-web/root/ /
 
 # add unrar
 COPY --from=unrar /usr/bin/unrar-ubuntu /usr/bin/unrar
