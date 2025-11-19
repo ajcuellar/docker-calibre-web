@@ -35,13 +35,25 @@ RUN \
     libxfixes3 \
     python3-venv \
     sqlite3 \
-    xdg-utils && \
+    xdg-utils \
+    nodejs \
+    npm \
+    curl \
+    ca-certificates && \
+  echo "**** install Node.js say library for audiobook generation ****" && \
+  npm install -g say && \
   echo "**** install calibre-web ****" && \
   mkdir -p \
     /app/calibre-web
 
 # Copy local calibre-web source code
 COPY calibre-web/ /app/calibre-web/
+
+# Install Node.js dependencies for audiobook generation
+RUN \
+  cd /app/calibre-web && \
+  npm install && \
+  echo "**** Node.js dependencies installed ****"
 
 # Continue with installation
 RUN \

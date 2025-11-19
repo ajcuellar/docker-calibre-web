@@ -23,10 +23,25 @@ Accede a la aplicación en: http://localhost:8083
 - Una base de datos de Calibre existente (`metadata.db`)
 - Puerto 8083 disponible
 
-## 🏷️ Tags Disponibles
+## 📦 Información de Versiones
 
-- `latest` - Última versión estable
-- `v0.6.27` - Versión específica con mejoras
+Esta imagen contiene las siguientes versiones de software:
+
+| Componente | Versión | Repositorio |
+|------------|---------|-------------|
+| **Calibre-Web (Base)** | [![GitHub release](https://img.shields.io/github/v/release/janeczku/calibre-web?label=)](https://github.com/janeczku/calibre-web/releases) | [janeczku/calibre-web](https://github.com/janeczku/calibre-web) |
+| **Calibre-Web (Fork)** | [![GitHub release](https://img.shields.io/github/v/release/ajcuellar/calibre-web?label=)](https://github.com/ajcuellar/calibre-web/releases) | [ajcuellar/calibre-web](https://github.com/ajcuellar/calibre-web) |
+| **Docker Image** | [![GitHub release](https://img.shields.io/github/v/tag/ajcuellar/docker-calibre-web?label=)](https://github.com/ajcuellar/docker-calibre-web/tags) | [ajcuellar/docker-calibre-web](https://github.com/ajcuellar/docker-calibre-web) |
+
+### Notas sobre versionado:
+- **Calibre-Web (Base)**: Versión original del proyecto upstream
+- **Calibre-Web (Fork)**: Tu fork con mejoras personalizadas
+- **Docker Image**: Versión del contenedor Docker (v0.6.27 indica la versión del contenedor, no del software)
+
+## 🏷️ Tags de Docker Disponibles
+
+- `latest` - Última versión estable del contenedor
+- `v0.6.27` - Versión específica del contenedor con mejoras
 
 ## 📁 Volúmenes
 
