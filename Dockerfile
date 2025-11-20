@@ -59,6 +59,16 @@ RUN \
     echo "**** Warning: CALIBREWEB_RELEASE not set, keeping default version ****"; \
   fi
 
+# Revert image sizes in caliBlur_override.css to original 150px
+RUN \
+  cd /app/calibre-web && \
+  if [ -f revert_image_sizes.py ]; then \
+    python3 revert_image_sizes.py && \
+    echo "**** Image sizes reverted to 150px in caliBlur_override.css ****"; \
+  else \
+    echo "**** Warning: revert_image_sizes.py not found, skipping image size reversion ****"; \
+  fi
+
 # Install Node.js dependencies for audiobook generation
 RUN \
   cd /app/calibre-web && \
