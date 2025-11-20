@@ -58,7 +58,6 @@ RUN \
 # Continue with installation
 RUN \
   cd /app/calibre-web && \
-  cd /app/calibre-web && \
   python3 -m venv /lsiopy && \
   pip install -U --no-cache-dir \
     pip \
@@ -66,6 +65,7 @@ RUN \
   pip install -U --no-cache-dir --find-links https://wheel-index.linuxserver.io/ubuntu/ -r \
     requirements.txt -r \
     optional-requirements.txt && \
+  echo "**** audiobook deps (ebooklib, pdfplumber, beautifulsoup4) installed from requirements.txt ****" && \
   echo "**** ensure babel is installed ****" && \
   pip install -U --no-cache-dir Babel && \
   echo "**** compile translations ****" && \
