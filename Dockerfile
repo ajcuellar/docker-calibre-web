@@ -66,7 +66,11 @@ RUN \
   pip install -U --no-cache-dir --find-links https://wheel-index.linuxserver.io/ubuntu/ -r \
     requirements.txt -r \
     optional-requirements.txt && \
-  echo "***install kepubify" && \
+  echo "**** ensure babel is installed ****" && \
+  pip install -U --no-cache-dir Babel && \
+  echo "**** compile translations ****" && \
+  pybabel compile -d /app/calibre-web/cps/translations && \
+  echo "**** install kepubify ****" && \
   if [ -z ${KEPUBIFY_RELEASE+x} ]; then \
     KEPUBIFY_RELEASE=$(curl -sX GET "https://api.github.com/repos/pgaskin/kepubify/releases/latest" \
     | awk '/tag_name/{print $4;exit}' FS='[""]'); \
