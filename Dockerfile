@@ -49,6 +49,16 @@ RUN \
 # Copy local calibre-web source code
 COPY calibre-web/ /app/calibre-web/
 
+# Update version to match actual release from build args
+RUN \
+  cd /app/calibre-web && \
+  if [ -n "${CALIBREWEB_RELEASE}" ]; then \
+    python3 update_version.py "${CALIBREWEB_RELEASE}" && \
+    echo "**** Version updated to ${CALIBREWEB_RELEASE} ****"; \
+  else \
+    echo "**** Warning: CALIBREWEB_RELEASE not set, keeping default version ****"; \
+  fi
+
 # Install Node.js dependencies for audiobook generation
 RUN \
   cd /app/calibre-web && \

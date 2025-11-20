@@ -15,3 +15,10 @@ fi
 
 # Pre-stage some files & directories for permissions purposes
 mkdir -p /app/calibre-web/cps/cache
+
+# Initialize statistics cache if it doesn't exist
+echo "Checking statistics cache..."
+if [[ ! -f /config/admin_stats_cache.json ]]; then
+    echo "Initializing statistics cache (first run)..."
+    cd /app/calibre-web && /lsiopy/bin/python cps/init_stats.py || echo "Statistics cache will be created on first access"
+fi
