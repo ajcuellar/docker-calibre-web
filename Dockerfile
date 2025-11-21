@@ -59,6 +59,16 @@ RUN \
     echo "**** Warning: CALIBREWEB_RELEASE not set, keeping default version ****"; \
   fi
 
+# Fix book cover sizes in caliBlur.css
+RUN \
+  cd /app/calibre-web && \
+  if [ -f fix_book_covers.py ]; then \
+    python3 fix_book_covers.py && \
+    echo "**** Book cover sizes fixed in caliBlur.css ****"; \
+  else \
+    echo "**** Warning: fix_book_covers.py not found ****"; \
+  fi
+
 # Add audiobook styles to caliBlur.css
 RUN \
   cd /app/calibre-web && \
@@ -66,7 +76,7 @@ RUN \
     python3 add_audiobook_styles.py && \
     echo "**** Audiobook styles added to caliBlur.css ****"; \
   else \
-    echo "**** Warning: add_audiobook_styles.py not found, skipping audiobook styles ****"; \
+    echo "**** Warning: add_audiobook_styles.py not found ****"; \
   fi
 
 # Install Node.js dependencies for audiobook generation
