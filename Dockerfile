@@ -39,7 +39,8 @@ RUN \
     nodejs \
     npm \
     curl \
-    ca-certificates && \
+    ca-certificates \
+    espeak-ng && \
   echo "**** install Node.js say library for audiobook generation ****" && \
   npm install -g say && \
   echo "**** install calibre-web ****" && \
