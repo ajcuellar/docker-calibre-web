@@ -40,7 +40,8 @@ RUN \
     npm \
     curl \
     ca-certificates \
-    espeak-ng && \
+    espeak-ng \
+    ffmpeg && \
   echo "**** install Node.js say library for audiobook generation ****" && \
   npm install -g say && \
   echo "**** install calibre-web ****" && \
