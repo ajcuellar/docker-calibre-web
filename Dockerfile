@@ -40,16 +40,29 @@ RUN \
     npm \
     curl \
     ca-certificates \
+    wget \
     espeak-ng \
     ffmpeg && \
   echo "**** install Node.js say library for audiobook generation ****" && \
   npm install -g say && \
+  echo "**** install Piper TTS for high-quality voices ****" && \
+  PIPER_VERSION="2023.11.14-2" && \
+  wget "https://github.com/rhasspy/piper/releases/download/${PIPER_VERSION}/piper_linux_x86_64.tar.gz" -O /tmp/piper.tar.gz && \
+  tar -xzf /tmp/piper.tar.gz -C /tmp && \
+  cp /tmp/piper/piper /usr/local/bin/piper && \
+  cp /tmp/piper/*.so* /usr/local/lib/ 2>/dev/null || true && \
+  cp -r /tmp/piper/espeak-ng-data /usr/share/ 2>/dev/null || true && \
+  chmod +x /usr/local/bin/piper && \
+  ldconfig && \
+  /usr/local/bin/piper --version && \
+  rm -rf /tmp/piper /tmp/piper.tar.gz && \
+  mkdir -p /app/piper-voices && \
   echo "**** install calibre-web ****" && \
   mkdir -p \
     /app/calibre-web
 
 # Copy local calibre-web source code
-COPY calibre-web/ /app/calibre-web/
+COPY ../calibre-web/ /app/calibre-web/
 
 # Update version to match actual release from build args
 RUN \
@@ -86,6 +99,27 @@ RUN \
   cd /app/calibre-web && \
   npm install && \
   echo "**** Node.js dependencies installed ****"
+
+# Download Piper voice models
+RUN \
+  echo "**** downloading Piper voice models ****" && \
+  mkdir -p /app/piper-voices && \
+  cd /app/piper-voices && \
+  echo "Downloading Spanish (Spain) female voice - medium quality..." && \
+  wget -q "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/davefx/medium/es_ES-davefx-medium.onnx" && \
+  wget -q "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/davefx/medium/es_ES-davefx-medium.onnx.json" && \
+  echo "Downloading Spanish (Spain) male voice - medium quality..." && \
+  wget -q "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/mls_10246/low/es_ES-mls_10246-low.onnx" && \
+  wget -q "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/mls_10246/low/es_ES-mls_10246-low.onnx.json" && \
+  echo "Downloading Spanish (Latin America) voice..." && \
+  wget -q "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_MX/ald/medium/es_MX-ald-medium.onnx" && \
+  wget -q "https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_MX/ald/medium/es_MX-ald-medium.onnx.json" && \
+  echo "Downloading English (US) voices..." && \
+  wget -q "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx" && \
+  wget -q "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json" && \
+  wget -q "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx" && \
+  wget -q "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx.json" && \
+  echo "**** Piper voice models downloaded ****"
 
 # Continue with installation
 RUN \
