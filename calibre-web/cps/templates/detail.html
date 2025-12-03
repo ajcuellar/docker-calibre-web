@@ -1,0 +1,954 @@
+{% extends is_xhr|yesno("fragment.html", "layout.html") %}
+{% block header %}
+    <meta property="og:type" content="book" />
+    <meta property="og:title" content="{{ entry.title|truncate(35) }}" />
+    {% if entry.comments|length > 0 and entry.comments[0].text|length > 0 %}
+      <meta property="og:description" content="{{ entry.comments[0].text|striptags|truncate(65) }}" />
+      <meta property="og:image" content="{{url_for('web.get_cover', book_id=entry.id, resolution='og', c=entry|last_modified)}}" />
+    {% endif %}
+{% endblock %}
+{% block body %}
+<div class="single">
+    <div class="row">
+        <div class="col-sm-3 col-lg-3 col-xs-5">
+            <div class="cover">
+                <!-- Always use full-sized image for the detail page -->
+                <img id="detailcover" title="{{ entry.title }}"
+                     src="{{ url_for('web.get_cover', book_id=entry.id, resolution='og', c=entry|last_modified) }}"/>
+            </div>
+        </div>
+        <div class="col-sm-9 col-lg-9 book-meta">
+            <div class="btn-toolbar" role="toolbar">
+                <div class="btn-group" role="group" aria-label="Download, send to eReader, reading">
+                    {% if current_user.role_download() %}
+                        {% if entry.data|length %}
+                            <div class="btn-group" role="group">
+                                {% if entry.data|length < 2 %}
+                                    <button id="Download" type="button" class="btn btn-primary">
+                                        {{ _('Download') }} :
+                                    </button>
+                                    {% for format in entry.data %}
+                                        <a href="{{ url_for('web.download_link', book_id=entry.id, book_format=format.format|lower, anyname=entry.id|string+'.'+format.format|lower|replace('kepub', 'kepub.epub')) }}"
+                                           id="btnGroupDrop1{{ format.format|lower }}" class="btn btn-primary"
+                                           role="button">
+                                            <span class="glyphicon glyphicon-download"></span>{{ format.format }}
+                                            ({{ format.uncompressed_size|filesizeformat }})
+                                        </a>
+                                    {% endfor %}
+                                {% else %}
+                                    <button id="btnGroupDrop1" type="button" class="btn btn-primary dropdown-toggle"
+                                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <span class="glyphicon glyphicon-download"></span> {{ _('Download') }}
+                                        <span class="caret"></span>
+                                    </button>
+                                    <ul class="dropdown-menu" aria-labelledby="btnGroupDrop1">
+                                        {% for format in entry.data %}
+                                            <li>
+                                                <a href="{{ url_for('web.download_link', book_id=entry.id, book_format=format.format|lower, anyname=entry.id|string+'.'+format.format|lower|replace('kepub', 'kepub.epub')) }}">{{ format.format }}
+                                                    ({{ format.uncompressed_size|filesizeformat }})</a></li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                        {% if current_user.kindle_mail and entry.email_share_list %}
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            {% if entry.email_share_list.__len__() == 1 %}
+                                <div class="btn-group" role="group">
+                                    <button id="sendbtn" class="btn btn-primary sendbtn-form" data-href="{{url_for('web.send_to_ereader', book_id=entry.id, book_format=entry.email_share_list[0]['format'], convert=entry.email_share_list[0]['convert'])}}">
+                                        <span class="glyphicon glyphicon-send"></span> {{entry.email_share_list[0]['text']}}
+                                    </button>
+                                </div>
+                            {% else %}
+                                <div class="btn-group" role="group">
+                                    <button id="sendbtn2" type="button" class="btn btn-primary dropdown-toggle"
+                                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <span class="glyphicon glyphicon-send"></span>{{ _('Send to eReader') }}
+                                        <span class="caret"></span>
+                                    </button>
+                                    <ul class="dropdown-menu" aria-labelledby="send-to-ereader">
+                                        {% for format in entry.email_share_list %}
+                                            <li>
+                                                <a class="sendbtn-form" data-href="{{url_for('web.send_to_ereader', book_id=entry.id, book_format=format['format'], convert=format['convert'])}}">{{ format['text'] }}</a>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+                        {% endif %}
+                    {% endif %}
+                    {% if entry.reader_list and current_user.role_viewer() %}
+                        <div class="btn-group" role="group">
+                            {% if entry.reader_list|length > 1 %}
+                                <button id="read-in-browser" type="button" class="btn btn-primary dropdown-toggle"
+                                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    <span class="glyphicon glyphicon-book"></span> {{ _('Read in Browser') }}
+                                    <span class="caret"></span>
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="read-in-browser">
+                                    {% for format in entry.reader_list %}
+                                        <li><a target="_blank"
+                                               href="{{ url_for('web.read_book', book_id=entry.id, book_format=format) }}">{{ format }}</a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <a target="_blank"
+                                   href="{{ url_for('web.read_book', book_id=entry.id, book_format=entry.reader_list[0]) }}"
+                                   id="readbtn" class="btn btn-primary" role="button"><span
+                                        class="glyphicon glyphicon-book"></span> {{ _('Read in Browser') }}
+                                    - {{ entry.reader_list[0] }}</a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                    {% if entry.audio_entries|length > 0 and current_user.role_viewer() %}
+                        <div class="btn-group" role="group">
+                            {% if entry.audio_entries|length > 1 %}
+                                <button id="listen-in-browser" type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    <span class="glyphicon glyphicon-music"></span> {{ _('Listen in Browser') }}
+                                    <span class="caret"></span>
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="listen-in-browser">
+                                    {% for format in entry.reader_list %}
+                                        <li><a target="_blank" href="{{ url_for('web.read_book', book_id=entry.id, book_format=format) }}">{{ format }}</a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                                <ul class="dropdown-menu" aria-labelledby="listen-in-browser">
+
+                                    {% for format in entry.data %}
+                                        {% if format.format|lower in entry.audio_entries %}
+                                            <li><a target="_blank"
+                                                   href="{{ url_for('web.read_book', book_id=entry.id, book_format=format.format|lower) }}">{{ format.format|lower }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <a target="_blank" href="{{ url_for('web.read_book', book_id=entry.id, book_format=entry.audio_entries[0]) }}" id="listenbtn" class="btn btn-primary" role="button"><span class="glyphicon glyphicon-music"></span> {{ _('Listen in Browser') }} - {{ entry.audio_entries[0] }}</a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
+                    <!-- Audiobook Buttons: Play Online & Download/Generate -->
+                    {% if entry.data|length %}
+                        {% set text_formats = [] %}
+                        {% for format in entry.data %}
+                            {% if format.format|upper in ['EPUB', 'PDF', 'TXT'] %}
+                                {% set _ = text_formats.append(format.format) %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if text_formats|length > 0 %}
+                            <!-- Button 1: Play Online (Quick Preview) - Icon Only -->
+                            <div class="btn-group" role="group">
+                                {% if text_formats|length == 1 %}
+                                    <a href="{{ url_for('web.quick_audiobook_preview', book_id=entry.id, book_format=text_formats[0]|lower) }}"
+                                       target="_blank" class="btn btn-primary" title="{{ _('Play Online - Quick Preview') }}">
+                                        <span class="glyphicon glyphicon-play"></span>
+                                    </a>
+                                {% else %}
+                                    <button id="audiobook-play-btn" type="button" class="btn btn-primary dropdown-toggle"
+                                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                            title="{{ _('Play Online - Quick Preview') }}">
+                                        <span class="glyphicon glyphicon-play"></span>
+                                        <span class="caret"></span>
+                                    </button>
+                                    <ul class="dropdown-menu" aria-labelledby="audiobook-play-btn">
+                                        {% for format in text_formats %}
+                                            <li><a href="{{ url_for('web.quick_audiobook_preview', book_id=entry.id, book_format=format|lower) }}" target="_blank">
+                                                <span class="glyphicon glyphicon-play"></span> {{ _('Quick Preview') }} ({{ format }})
+                                            </a></li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </div>
+
+                            <!-- Button 2: Generate Audiobook - Icon Only -->
+                            <div class="btn-group" role="group">
+                                {% if text_formats|length == 1 %}
+                                    <a href="#" class="btn btn-primary generate-audiobook-link"
+                                       data-format="{{ text_formats[0] }}"
+                                       title="{{ _('Generate Full Audiobook') }}">
+                                        <span class="glyphicon glyphicon-headphones"></span>
+                                    </a>
+                                {% else %}
+                                    <button id="audiobook-download-btn" type="button" class="btn btn-primary dropdown-toggle"
+                                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                            title="{{ _('Generate Full Audiobook') }}">
+                                        <span class="glyphicon glyphicon-headphones"></span>
+                                        <span class="caret"></span>
+                                    </button>
+                                    <ul class="dropdown-menu" aria-labelledby="audiobook-download-btn">
+                                        {% for format in text_formats %}
+                                            <li><a href="#" class="generate-audiobook-link" data-format="{{ format }}">
+                                                <span class="glyphicon glyphicon-cog"></span> {{ _('Generate from') }} {{ format }}
+                                            </a></li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Generated Audiobooks Section -->
+            {% if generated_audiobooks and generated_audiobooks|length > 0 %}
+            <div class="generated-audiobooks-section">
+                <h4 style="cursor: pointer; user-select: none;" data-toggle="collapse" data-target="#audiobook-files-collapse" aria-expanded="true">
+                    <span class="glyphicon glyphicon-chevron-down" id="audiobook-chevron"></span>
+                    <span class="glyphicon glyphicon-headphones"></span>
+                    Audiobook disponible ({{ generated_audiobooks|length }} {% if generated_audiobooks|length == 1 %}parte{% else %}partes{% endif %})
+                </h4>
+                <div id="audiobook-files-collapse" class="collapse in">
+                    <div class="audiobook-files-list">
+                        {% for audiobook in generated_audiobooks %}
+                        <div class="audiobook-file-item">
+                            <div class="audiobook-info">
+                                <span class="audiobook-filename">
+                                    <span class="glyphicon glyphicon-music"></span>
+                                    {{ audiobook.filename }}
+                                </span>
+                                <span class="audiobook-metadata">
+                                    <span class="audiobook-filesize">{{ audiobook.size|filesizeformat }}</span>
+                                    {% if audiobook.duration > 0 %}
+                                    <span class="audiobook-duration">
+                                        <span class="glyphicon glyphicon-time"></span>
+                                        {% set hours = audiobook.duration // 3600 %}
+                                        {% set minutes = (audiobook.duration % 3600) // 60 %}
+                                        {% set seconds = audiobook.duration % 60 %}
+                                        {% if hours > 0 %}{{ hours }}h {% endif %}{{ minutes }}m {% if hours == 0 %}{{ seconds }}s{% endif %}
+                                    </span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div class="audiobook-actions">
+                                <button type="button"
+                                        class="btn btn-xs btn-primary audiobook-play-btn-inline"
+                                        data-audio-url="{{ url_for('web.play_generated_audiobook', book_id=entry.id, filename=audiobook.filename) }}"
+                                        data-audio-title="{{ audiobook.filename }}"
+                                        title="{{ _('Play Online') }}">
+                                    <span class="glyphicon glyphicon-play"></span> {{ _('Play') }}
+                                </button>
+                                <a href="{{ url_for('web.download_generated_audiobook', book_id=entry.id, filename=audiobook.filename) }}"
+                                   class="btn btn-xs btn-success audiobook-download-btn"
+                                   title="{{ _('Download') }}">
+                                    <span class="glyphicon glyphicon-download"></span> {{ _('Download') }}
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <h2 id="title">{{ entry.title }}</h2>
+            <p class="author">
+                {% for author in entry.ordered_authors %}
+                    <a href="{{ url_for('web.books_list',  data='author', sort_param='stored', book_id=author.id ) }}">{{ author.name.replace('|',',') }}</a>
+                    {% if not loop.last %}
+                        &amp;
+                    {% endif %}
+                {% endfor %}
+            </p>
+            {% if entry.ratings.__len__() > 0 %}
+                <div class="rating">
+                    <p>
+                        {% for number in range((entry.ratings[0].rating/2)|int(2)) %}
+                            <span class="glyphicon glyphicon-star good"></span>
+                            {% if loop.last and loop.index < 5 %}
+                                {% for numer in range(5 - loop.index) %}
+                                    <span class="glyphicon glyphicon-star-empty"></span>
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                    </p>
+                </div>
+            {% endif %}
+            {% if entry.series|length > 0 %}
+                <p>{{ _("Book %(index)s of %(range)s", index=entry.series_index|formatfloat(2), range=(url_for('web.books_list', data='series', sort_param='stored', book_id=entry.series[0].id)|escapedlink(entry.series[0].name))|safe) }}</p>
+
+            {% endif %}
+
+            {% if entry.languages|length > 0 %}
+                <div class="languages">
+                    <p>
+                        <span class="label label-default">{{_('Language')}}: {% for language in entry.languages %}{{language.language_name}}{% if not loop.last %}, {% endif %}{% endfor %}</span>
+                    </p>
+                </div>
+            {% endif %}
+
+            {% if entry.identifiers|length > 0 %}
+                <div class="identifiers">
+                    <p>
+                        <span class="glyphicon glyphicon-link"></span>
+                        {% for identifier in entry.identifiers %}
+                            <a href="{{ identifier|escape }}" target="_blank" class="btn btn-xs btn-success"
+                               role="button">{{ identifier.format_type() }}</a>
+                        {% endfor %}
+                    </p>
+                </div>
+            {% endif %}
+
+            {% if entry.tags|length > 0 %}
+
+                <div class="tags">
+                    <p>
+                        <span class="glyphicon glyphicon-tags"></span>
+
+                        {% for tag in entry.tags %}
+                            <a href="{{ url_for('web.books_list', data='category', sort_param='stored', book_id=tag.id) }}"
+                               class="btn btn-xs btn-info" role="button">{{ tag.name }}</a>
+                        {% endfor %}
+                    </p>
+
+                </div>
+            {% endif %}
+
+            {% if entry.publishers|length > 0 %}
+                <div class="publishers">
+                    <p>
+				      <span>{{ _('Publisher') }}:
+				          <a href="{{ url_for('web.books_list', data='publisher', sort_param='stored', book_id=entry.publishers[0].id ) }}">{{ entry.publishers[0].name }}</a>
+				      </span>
+                    </p>
+                </div>
+            {% endif %}
+
+            {% if (entry.pubdate|string)[:10] != '0101-01-01' %}
+                <div class="publishing-date">
+                    <p>{{ _('Published') }}: {{ entry.pubdate|formatdate }} </p>
+                </div>
+            {% endif %}
+            {% if cc|length > 0 %}
+
+
+                {% for c in cc %}
+                    {% if entry['custom_column_' ~ c.id]|length > 0 %}
+                        <div class="real_custom_columns">
+                            {{ c.name }}:
+                            {% for column in entry['custom_column_' ~ c.id] %}
+                                {% if c.datatype == 'rating' %}
+                                    {{ (column.value / 2)|formatfloat }}
+                                {% else %}
+                                    {% if c.datatype == 'bool' %}
+                                        {% if column.value == true %}
+                                            <span class="glyphicon glyphicon-ok"></span>
+                                        {% else %}
+                                            <span class="glyphicon glyphicon-remove"></span>
+                                        {% endif %}
+                                    {% else %}
+                                        {% if c.datatype == 'float' %}
+                                            {{ column.value|formatfloat(2) }}
+                                        {% elif c.datatype == 'datetime' %}
+                                            {{ column.value|formatdate }}
+                                        {% elif c.datatype == 'comments' %}
+                                            {{ column.value|safe }}
+                                        {% elif c.datatype == 'series' %}
+                                            {{ '%s [%s]' % (column.value, column.extra|formatfloat(2)) }}
+                                        {% elif c.datatype == 'text' %}
+                                            {{ column.value.strip() }}{% if not loop.last %}, {% endif %}
+                                        {% else %}
+                                            {{ column.value }}
+                                        {% endif %}
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            {% if not current_user.is_anonymous %}
+
+                <div class="custom_columns">
+                    <p>
+                    <form id="have_read_form" action="{{ url_for('web.toggle_read', book_id=entry.id) }}"
+                          method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <label class="block-label">
+                            <input id="have_read_cb" data-checked="{{ _('Mark As Unread') }}"
+                                   data-unchecked="{{ _('Mark As Read') }}" type="checkbox"
+                                   {% if entry.read_status %}checked{% endif %}>
+                            <span data-toggle="tooltip" title="{{_('Mark Book as Read or Unread')}}">{{ _('Read') }}</span>
+                        </label>
+                    </form>
+                    </p>
+                    {% if current_user.check_visibility(32768) %}
+                        <p>
+                        <form id="archived_form" action="{{ url_for('web.toggle_archived', book_id=entry.id) }}"
+                              method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <label class="block-label">
+                                <input id="archived_cb" data-checked="{{ _('Restore from archive') }}"
+                                       data-unchecked="{{ _('Add to archive') }}" type="checkbox"
+                                       {% if entry.is_archived %}checked{% endif %}>
+                                <span data-toggle="tooltip" title="{{_('Mark Book as archived or not, to hide it in Calibre-Web and delete it from Kobo Reader')}}">{{ _('Archive') }}</span>
+                            </label>
+                        </form>
+                        </p>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+
+            {% if entry.comments|length > 0 and entry.comments[0].text|length > 0 %}
+                <div class="comments">
+                    <h3 id="decription">{{ _('Description:') }}</h3>
+                    {{ entry.comments[0].text|safe }}
+                </div>
+            {% endif %}
+
+
+            <div class="more-stuff">
+
+                {% if current_user.is_authenticated %}
+                    {% if current_user.shelf.all() or g.shelves_access %}
+                        <div id="shelf-actions" class="btn-toolbar" role="toolbar">
+                            <!-- Quick access buttons for default shelves -->
+                            {% set default_shelf_names = ['Leer después', 'Favoritos', 'Leyendo ahora'] %}
+                            {% set default_shelf_icons = ['glyphicon-time', 'glyphicon-heart', 'glyphicon-eye-open'] %}
+                            {% for shelf in g.shelves_access %}
+                                {% if shelf.name in default_shelf_names %}
+                                    {% set shelf_index = default_shelf_names.index(shelf.name) %}
+                                    <div class="btn-group" role="group">
+                                        {% if shelf.id in books_shelfs %}
+                                            <a data-href="{{ url_for('shelf.remove_from_shelf', book_id=entry.id, shelf_id=shelf.id) }}"
+                                               data-add-href="{{ url_for('shelf.add_to_shelf', book_id=entry.id, shelf_id=shelf.id) }}"
+                                               class="btn btn-sm btn-success quick-shelf-btn"
+                                               data-shelf-action="remove"
+                                               title="{{ _('Remove from') }} {{ shelf.name }}">
+                                                <span class="glyphicon {{ default_shelf_icons[shelf_index] }}"></span>
+                                                <span class="glyphicon glyphicon-ok"></span>
+                                            </a>
+                                        {% else %}
+                                            <a data-href="{{ url_for('shelf.add_to_shelf', book_id=entry.id, shelf_id=shelf.id) }}"
+                                               data-remove-href="{{ url_for('shelf.remove_from_shelf', book_id=entry.id, shelf_id=shelf.id) }}"
+                                               class="btn btn-sm btn-default quick-shelf-btn"
+                                               data-shelf-action="add"
+                                               title="{{ _('Add to') }} {{ shelf.name }}">
+                                                <span class="glyphicon {{ default_shelf_icons[shelf_index] }}"></span>
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+
+                            <!-- Standard dropdown for all shelves -->
+                            <div class="btn-group" role="group" aria-label="Add to shelves">
+                                <button id="add-to-shelf" type="button"
+                                        class="btn btn-primary btn-sm dropdown-toggle" data-toggle="dropdown"
+                                        aria-haspopup="true" aria-expanded="false">
+                                    <span class="glyphicon glyphicon-list"></span> {{ _('Add to shelf') }}
+                                    <span class="caret"></span>
+                                </button>
+                                <ul id="add-to-shelves" class="dropdown-menu" aria-labelledby="add-to-shelf">
+                                    {% for shelf in g.shelves_access %}
+                                        {% if not shelf.id in books_shelfs and ( not shelf.is_public or current_user.role_edit_shelfs() ) %}
+                                            <li>
+                                                <a data-href="{{ url_for('shelf.add_to_shelf', book_id=entry.id, shelf_id=shelf.id) }}"
+                                                   data-remove-href="{{ url_for('shelf.remove_from_shelf', book_id=entry.id, shelf_id=shelf.id) }}"
+                                                   data-shelf-action="add"
+                                                >
+                                                    {{ shelf.name }}{% if shelf.is_public == 1 %}
+                                                        {{ _('(Public)') }}{% endif %}
+                                                </a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            <div id="remove-from-shelves" class="btn-group" role="group"
+                                 aria-label="Remove from shelves">
+                                {% if books_shelfs %}
+                                    {% for shelf in g.shelves_access %}
+                                        {% if shelf.id in books_shelfs %}
+                                            <a data-href="{{ url_for('shelf.remove_from_shelf', book_id=entry.id, shelf_id=shelf.id) }}"
+                                               data-add-href="{{ url_for('shelf.add_to_shelf', book_id=entry.id, shelf_id=shelf.id) }}"
+                                               class="btn btn-sm btn-default" role="button"
+                                               data-shelf-action="remove"
+                                            >
+								              <span {% if not shelf.is_public or current_user.role_edit_shelfs() %}
+								                  class="glyphicon glyphicon-remove"
+								              {% endif %}></span> {{ shelf.name }}{% if shelf.is_public == 1 %} {{ _('(Public)') }}{% endif %}
+                                            </a>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <div id="shelf-action-errors" class="pull-left" role="alert"></div>
+                        </div>
+                    {% endif %}
+
+                {% endif %}
+                {% if current_user.role_edit() %}
+                    <div class="col-sm-12">
+                        <div class="btn-group" role="group" aria-label="Edit/Delete book">
+                            <a href="{{ url_for('edit-book.show_edit_book', book_id=entry.id) }}"
+                               class="btn btn-sm btn-primary" id="edit_book" role="button"><span
+                                    class="glyphicon glyphicon-edit"></span> {{ _('Edit Metadata') }}</a>
+                        </div>
+                        <div class="btn btn-default" data-back="{{ url_for('web.index') }}" id="back">{{_('Cancel')}}</div>
+                   </div>
+                {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script type="text/template" id="template-shelf-add">
+    <li>
+        <a data-href="<%= add %>" data-remove-href="<%= remove %>" data-shelf-action="add">
+            <%= content %>
+        </a>
+    </li>
+</script>
+<script type="text/template" id="template-shelf-remove">
+    <a data-href="<%= remove %>" data-add-href="<%= add %>" class="btn btn-sm btn-default"
+       data-shelf-action="remove">
+        <span class="glyphicon glyphicon-remove"></span> <%= content %>
+    </a>
+</script>
+<script src="{{ url_for('static', filename='js/details.js') }}"></script>
+<script src="{{ url_for('static', filename='js/fullscreen.js') }}"></script>
+
+<!-- Modal for Audiobook Generation Settings -->
+<div class="modal fade" id="audiobookModal" tabindex="-1" role="dialog" aria-labelledby="audiobookModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="audiobookModalLabel">
+                    <span class="glyphicon glyphicon-headphones"></span>
+                    {{ _('Generate Audiobook') }}
+                </h4>
+            </div>
+            <form id="audiobook-form" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <span class="glyphicon glyphicon-info-sign"></span>
+                        {{ _('This will generate an audiobook using high-quality neural text-to-speech (Piper TTS). The process may take several minutes depending on the book length.') }}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="voice-select">{{ _('Voice') }} <small class="text-muted">(Neural TTS - High Quality)</small></label>
+                        <div style="display: flex; gap: 10px;">
+                            <select id="voice-select" name="voice" class="form-control" style="flex: 1;">
+                                <option value="Monica" selected>🇪🇸 Spanish (Female) - Natural</option>
+                                <option value="Jorge">🇪🇸 Spanish (Male)</option>
+                                <option value="Paulina">🇲🇽 Spanish Latin America (Female)</option>
+                                <option value="Alex">🇺🇸 English US (Male)</option>
+                                <option value="Daniel">🇬🇧 English UK (Male)</option>
+                            </select>
+                            <button type="button" id="preview-voice-btn" class="btn btn-primary" title="{{ _('Preview Voice') }}">
+                                <span class="glyphicon glyphicon-volume-up"></span>
+                                <span class="hidden-xs">{{ _('Preview') }}</span>
+                            </button>
+                        </div>
+                        <p class="help-block">{{ _('Select the language and voice for audiobook narration. Powered by Piper neural TTS for natural-sounding voices.') }}</p>
+
+                        <!-- Voice Preview Player (hidden by default) -->
+                        <div id="voice-preview-player" style="display: none; margin-top: 10px;">
+                            <div class="alert alert-info" style="margin-bottom: 10px; padding: 8px;">
+                                <span class="glyphicon glyphicon-info-sign"></span>
+                                <strong>{{ _('Voice Preview') }}</strong>
+                            </div>
+                            <audio id="voice-preview-audio" controls style="width: 100%;">
+                                {{ _('Your browser does not support the audio element.') }}
+                            </audio>
+                        </div>
+
+                        <!-- Loading indicator for preview -->
+                        <div id="voice-preview-loading" style="display: none; margin-top: 10px;">
+                            <div class="alert alert-info" style="padding: 8px;">
+                                <span class="glyphicon glyphicon-hourglass"></span>
+                                {{ _('Generating voice preview...') }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="words-per-part">{{ _('Words per Audio File') }}</label>
+                        <select id="words-per-part" name="words_per_part" class="form-control">
+                            <option value="3000">3,000 words (~20-30 minutes)</option>
+                            <option value="5000" selected>5,000 words (~30-45 minutes)</option>
+                            <option value="10000">10,000 words (~60-90 minutes)</option>
+                            <option value="15000">15,000 words (~90-120 minutes)</option>
+                        </select>
+                        <p class="help-block">{{ _('The audiobook will be split into multiple files for easier handling') }}</p>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <span class="glyphicon glyphicon-warning-sign"></span>
+                        <strong>{{ _('Note:') }}</strong> {{ _('Generation is done in the background. You can continue using the application and will be notified when complete.') }}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">{{ _('Cancel') }}</button>
+                    <button type="submit" class="btn btn-success">
+                        <span class="glyphicon glyphicon-cog"></span>
+                        {{ _('Generate Audiobook') }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Audio Player Modal -->
+<div id="audioPlayerModal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title">
+                    <span class="glyphicon glyphicon-headphones"></span>
+                    {{ _('Audiobook Player') }}
+                </h4>
+            </div>
+            <div class="modal-body">
+                <h5 id="audio-player-title" style="margin-bottom: 15px; font-weight: bold;"></h5>
+                <audio id="audiobook-player" controls style="width: 100%;" preload="metadata">
+                    {{ _('Your browser does not support the audio element.') }}
+                </audio>
+                <div style="margin-top: 15px;">
+                    <small class="text-muted">
+                        <span class="glyphicon glyphicon-info-sign"></span>
+                        {{ _('Tip: You can close this dialog and the audio will continue playing in the background.') }}
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">{{ _('Close') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Progress Modal -->
+<div id="audiobookProgressModal" class="modal fade" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">
+                    <span class="glyphicon glyphicon-cog"></span>
+                    {{ _('Generating Audiobook') }}
+                </h4>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <span class="glyphicon glyphicon-info-sign"></span>
+                    {{ _('Your audiobook is being generated in the background. You can close this dialog and continue browsing.') }}
+                </div>
+
+                <h5 id="progress-book-title" style="margin-bottom: 15px; font-weight: bold;"></h5>
+
+                <div class="progress" style="height: 30px; margin-bottom: 10px;">
+                    <div id="audiobook-progress-bar" class="progress-bar progress-bar-striped active" role="progressbar"
+                         aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%; min-width: 2em;">
+                        <span id="progress-percentage">0%</span>
+                    </div>
+                </div>
+
+                <p id="progress-message" style="text-align: center; color: #555;">
+                    {{ _('Initializing...') }}
+                </p>
+
+                <div style="margin-top: 20px; padding: 10px; background-color: #f5f5f5; border-radius: 4px; display: none;" id="progress-stats">
+                    <small class="text-muted">
+                        <span class="glyphicon glyphicon-time"></span>
+                        <span id="progress-elapsed">0s</span>
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" id="progress-close-btn">
+                    {{ _('Close & Continue in Background') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+$(document).ready(function() {
+    // Handle Generate Audiobook button click
+    $('.generate-audiobook-link').on('click', function(e) {
+        e.preventDefault();
+
+        var format = $(this).data('format');
+        var bookId = {{ entry.id }};
+
+        // Set form action URL
+        var formAction = '/book/' + bookId + '/generate-audiobook/' + format.toLowerCase();
+        $('#audiobook-form').attr('action', formAction);
+
+        // Show modal
+        $('#audiobookModal').modal('show');
+    });
+
+    // Progress polling variables
+    var progressPollingInterval = null;
+    var progressStartTime = null;
+
+    // Handle form submission
+    $('#audiobook-form').on('submit', function(e) {
+        e.preventDefault();
+
+        var form = $(this);
+        var url = form.attr('action');
+
+        // Show loading state
+        var submitBtn = form.find('button[type="submit"]');
+        var originalText = submitBtn.html();
+        submitBtn.prop('disabled', true).html('<span class="glyphicon glyphicon-refresh glyphicon-spin"></span> ' + '{{ _("Starting...") }}');
+
+        // Submit form via AJAX to stay on page
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: form.serialize(),
+            success: function(response) {
+                // Close generation modal
+                $('#audiobookModal').modal('hide');
+
+                // Show progress modal
+                $('#audiobookProgressModal').modal('show');
+                $('#progress-book-title').text('{{ entry.title }}');
+                $('#progress-stats').show();
+
+                // Reset progress
+                updateProgress(0, '{{ _("Starting audiobook generation...") }}');
+
+                // Start progress tracking
+                progressStartTime = Date.now();
+                startProgressPolling({{ entry.id }});
+
+                // Reset button
+                submitBtn.prop('disabled', false).html(originalText);
+            },
+            error: function(xhr, status, error) {
+                // Show error message
+                var errorMsg = '{{ _("Error starting audiobook generation") }}';
+                if (xhr.responseText) {
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.error) {
+                            errorMsg = response.error;
+                        }
+                    } catch (e) {
+                        // Ignore JSON parse error
+                    }
+                }
+
+                alert(errorMsg);
+
+                // Reset button
+                submitBtn.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+
+    // Function to update progress UI
+    function updateProgress(percentage, message) {
+        percentage = Math.round(percentage);
+        $('#audiobook-progress-bar').css('width', percentage + '%')
+                                    .attr('aria-valuenow', percentage);
+        $('#progress-percentage').text(percentage + '%');
+        $('#progress-message').text(message);
+
+        // Update elapsed time
+        if (progressStartTime) {
+            var elapsed = Math.round((Date.now() - progressStartTime) / 1000);
+            var minutes = Math.floor(elapsed / 60);
+            var seconds = elapsed % 60;
+            var timeStr = minutes > 0 ? minutes + 'm ' + seconds + 's' : seconds + 's';
+            $('#progress-elapsed').text(timeStr);
+        }
+    }
+
+    // Function to start polling for progress
+    function startProgressPolling(bookId) {
+        // Clear any existing polling
+        if (progressPollingInterval) {
+            clearInterval(progressPollingInterval);
+        }
+
+        // Poll every 2 seconds
+        progressPollingInterval = setInterval(function() {
+            $.ajax({
+                url: '/audiobook/task-status/' + bookId,
+                type: 'GET',
+                success: function(data) {
+                    if (data.active) {
+                        // Update progress
+                        updateProgress(data.progress, data.message || '{{ _("Processing...") }}');
+                    } else {
+                        // Task completed or not found
+                        clearInterval(progressPollingInterval);
+                        progressPollingInterval = null;
+
+                        // Show completion
+                        updateProgress(100, '{{ _("Audiobook generation completed!") }}');
+
+                        // Change progress bar to success color
+                        $('#audiobook-progress-bar').removeClass('active')
+                                                    .addClass('progress-bar-success');
+
+                        // Auto-close after 3 seconds and reload page
+                        setTimeout(function() {
+                            $('#audiobookProgressModal').modal('hide');
+                            location.reload();
+                        }, 3000);
+                    }
+                },
+                error: function() {
+                    // Continue polling even on error (might be temporary)
+                    console.log('Error fetching progress, will retry...');
+                }
+            });
+        }, 2000);
+    }
+
+    // Stop polling when modal is closed
+    $('#progress-close-btn').on('click', function() {
+        if (progressPollingInterval) {
+            clearInterval(progressPollingInterval);
+            progressPollingInterval = null;
+        }
+        $('#audiobookProgressModal').modal('hide');
+    });
+
+    // Clean up on page unload
+    $(window).on('beforeunload', function() {
+        if (progressPollingInterval) {
+            clearInterval(progressPollingInterval);
+        }
+    });
+
+    // Reset modal when closed
+    $('#audiobookModal').on('hidden.bs.modal', function () {
+        $('#audiobook-form').trigger('reset');
+    });
+
+    // Toggle chevron icon when audiobook section is collapsed/expanded
+    $('#audiobook-files-collapse').on('show.bs.collapse hide.bs.collapse', function(e) {
+        var chevron = $('#audiobook-chevron');
+        if (e.type === 'show') {
+            chevron.removeClass('glyphicon-chevron-right').addClass('glyphicon-chevron-down');
+        } else {
+            chevron.removeClass('glyphicon-chevron-down').addClass('glyphicon-chevron-right');
+        }
+    });
+
+    // Voice Preview functionality
+    $('#preview-voice-btn').on('click', function() {
+        var voice = $('#voice-select').val();
+        var btn = $(this);
+        var originalHtml = btn.html();
+
+        // Hide previous preview if any
+        $('#voice-preview-player').hide();
+
+        // Show loading indicator
+        $('#voice-preview-loading').show();
+
+        // Disable button during generation
+        btn.prop('disabled', true);
+        btn.html('<span class="glyphicon glyphicon-hourglass"></span> {{ _("Generating...") }}');
+
+        // Call preview endpoint
+        $.ajax({
+            url: '{{ url_for("web.preview_voice") }}',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                voice: voice
+            }),
+            success: function(data) {
+                if (data.success) {
+                    // Convert base64 to blob and create URL
+                    var audioData = atob(data.audio);
+                    var arrayBuffer = new ArrayBuffer(audioData.length);
+                    var uint8Array = new Uint8Array(arrayBuffer);
+                    for (var i = 0; i < audioData.length; i++) {
+                        uint8Array[i] = audioData.charCodeAt(i);
+                    }
+                    var blob = new Blob([uint8Array], { type: data.mime_type });
+                    var audioUrl = URL.createObjectURL(blob);
+
+                    // Set audio source and show player
+                    var audioPlayer = $('#voice-preview-audio')[0];
+                    audioPlayer.src = audioUrl;
+                    $('#voice-preview-loading').hide();
+                    $('#voice-preview-player').show();
+
+                    // Auto-play the preview
+                    audioPlayer.play();
+                } else {
+                    $('#voice-preview-loading').hide();
+                    alert('{{ _("Error generating preview:") }} ' + (data.error || '{{ _("Unknown error") }}'));
+                }
+
+                // Re-enable button
+                btn.prop('disabled', false);
+                btn.html(originalHtml);
+            },
+            error: function(xhr, status, error) {
+                $('#voice-preview-loading').hide();
+                var errorMsg = '{{ _("Error generating voice preview") }}';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg += ': ' + xhr.responseJSON.error;
+                }
+                alert(errorMsg);
+
+                // Re-enable button
+                btn.prop('disabled', false);
+                btn.html(originalHtml);
+            }
+        });
+    });
+
+    // Hide preview when voice changes
+    $('#voice-select').on('change', function() {
+        $('#voice-preview-player').hide();
+        $('#voice-preview-loading').hide();
+    });
+
+    // Audiobook inline player functionality
+    $('.audiobook-play-btn-inline').on('click', function() {
+        var audioUrl = $(this).data('audio-url');
+        var audioTitle = $(this).data('audio-title');
+
+        // Set audio source and title
+        $('#audio-player-title').text(audioTitle);
+        var audioPlayer = $('#audiobook-player')[0];
+        audioPlayer.src = audioUrl;
+
+        // Show modal
+        $('#audioPlayerModal').modal('show');
+
+        // Auto-play when modal is shown
+        $('#audioPlayerModal').on('shown.bs.modal', function() {
+            audioPlayer.play();
+        });
+    });
+
+    // Pause audio when modal is closed (optional - user might want it to continue)
+    // Uncomment the following lines if you want to pause on close:
+    // $('#audioPlayerModal').on('hidden.bs.modal', function() {
+    //     var audioPlayer = $('#audiobook-player')[0];
+    //     audioPlayer.pause();
+    // });
+});
+</script>
+
+{% endblock %}
