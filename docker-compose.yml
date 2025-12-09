@@ -1,3 +1,9 @@
+version: '3.8'
+
+networks:
+  calibre-network:
+    driver: bridge
+
 services:
   calibre-web:
     build:
@@ -14,3 +20,36 @@ services:
     restart: always
     ports:
       - 8084:8083
+    networks:
+      - calibre-network
+
+  telegram-book-bot:
+    build:
+      context: ./telegram-book-bot
+      dockerfile: Dockerfile
+    container_name: telegram-book-bot
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Madrid
+      # Optional: Override config with environment variables
+      - BOT_TOKEN=${BOT_TOKEN:-}
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID:-}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH:-}
+      - CALIBRE_WEB_URL=http://calibre-web:8083
+      - CALIBRE_WEB_USER=${CALIBRE_WEB_USER:-admin}
+      - CALIBRE_WEB_PASSWORD=${CALIBRE_WEB_PASSWORD:-}
+    volumes:
+      # Mount config file (create this file before starting)
+      - ./telegram-book-bot/config.json:/app/config.json:ro
+      # Persistent data
+      - ./telegram-book-bot/data:/app/data
+      - ./telegram-book-bot/downloads:/app/downloads
+      - ./telegram-book-bot/logs:/app/logs
+      # Session files
+      - ./telegram-book-bot/bot_session.session:/app/bot_session.session
+    depends_on:
+      - calibre-web
+    networks:
+      - calibre-network

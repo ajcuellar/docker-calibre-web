@@ -76,3 +76,44 @@ GPL v3 License
 - [Código fuente](https://github.com/ajcuellar/calibre-web)
 - [Repositorio Docker](https://github.com/ajcuellar/docker-calibre-web)
 - [Imagen en Docker Hub](https://hub.docker.com/r/ajcuellar/calibre-web)
+## 🤖 Bot de Telegram Integrado
+
+Esta imagen ahora incluye un Bot de Telegram completamente integrado para búsqueda y descarga automática de libros.
+
+### Características del Bot
+- 🔍 Busca libros en múltiples fuentes de Telegram
+- 📥 Descarga automática
+- 📚 Integración directa con Calibre-Web
+- 🌐 Interfaz en español
+- 👥 Control de acceso por usuario
+
+### Inicio Rápido con Bot
+
+```bash
+# 1. Configurar el bot
+cd telegram-book-bot
+cp config.json.example config.json
+# Editar config.json con tus credenciales
+
+# 2. Iniciar todo
+cd ..
+docker-compose up -d
+```
+
+### Documentación del Bot
+- [QUICK_START.md](QUICK_START.md) - Inicio rápido (5 minutos)
+- [TELEGRAM_BOT_INTEGRATION.md](TELEGRAM_BOT_INTEGRATION.md) - Guía completa
+- [telegram-book-bot/](telegram-book-bot/) - Código fuente del bot
+
+### Comandos del Bot en Telegram
+- `/start` - Iniciar el bot
+- `/buscar <título>` - Buscar libros
+- `/config` - Ver fuentes configuradas
+- `/stats` - Ver estadísticas
+- `/help` - Ayuda
+
+O simplemente escribe el nombre del libro directamente.
+
+---
+
+**Actualizado**: 2025-12-09 - Añadida integración del Bot de Telegram

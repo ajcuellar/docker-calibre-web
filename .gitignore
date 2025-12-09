@@ -44,3 +44,13 @@ Temporary Items
 .jenkins-external
 biblioteca/
 config/
+# Telegram Bot
+telegram-book-bot/config.json
+telegram-book-bot/data/
+telegram-book-bot/downloads/
+telegram-book-bot/logs/
+telegram-book-bot/*.session
+telegram-book-bot/*.session-journal
+telegram-book-bot/venv/
+telegram-book-bot/__pycache__/
+.env
