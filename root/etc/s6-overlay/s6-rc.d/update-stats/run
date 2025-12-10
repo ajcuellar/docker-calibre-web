@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/with-contenv bash
 # Service to update statistics cache every 15 minutes
 
 # Wait for calibre-web to be ready
@@ -6,7 +6,7 @@ sleep 60
 
 while true; do
     echo "$(date) - Updating statistics cache..."
-    cd /app/calibre-web && /lsiopy/bin/python -c "from cps import admin_stats; admin_stats.update_stats_cache()" || echo "Failed to update stats cache"
+    cd /app/calibre-web && /lsiopy/bin/python -c "from cps import admin_stats; admin_stats.update_stats_cache()" 2>&1 || echo "Failed to update stats cache"
 
     # Wait 15 minutes
     sleep 900
