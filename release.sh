@@ -1,6 +1,6 @@
 #!/bin/bash
 # Script para crear un nuevo release de Docker Calibre-Web
-# Uso: ./release.sh 0.46.2 "Descripción del release"
+# Uso: ./release.sh [major|minor|patch|X.Y.Z] "Descripción del release"
 
 set -e
 
@@ -11,14 +11,56 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Función para obtener versión actual
+get_current_version() {
+    grep "STABLE_VERSION" calibre-web/cps/constants.py | sed -E "s/.*'([0-9]+\.[0-9]+\.[0-9]+)'.*/\1/"
+}
+
+# Función para incrementar versión
+increment_version() {
+    local version=$1
+    local type=$2
+    
+    IFS='.' read -r major minor patch <<< "$version"
+    
+    case $type in
+        major)
+            major=$((major + 1))
+            minor=0
+            patch=0
+            ;;
+        minor)
+            minor=$((minor + 1))
+            patch=0
+            ;;
+        patch)
+            patch=$((patch + 1))
+            ;;
+        *)
+            echo "$version"
+            return
+            ;;
+    esac
+    
+    echo "${major}.${minor}.${patch}"
+}
+
 # Función para mostrar uso
 show_usage() {
     echo -e "${BLUE}Uso:${NC}"
-    echo "  ./release.sh <versión> [descripción]"
+    echo "  ./release.sh <versión|tipo> [descripción]"
+    echo ""
+    echo -e "${BLUE}Opciones de versión:${NC}"
+    echo "  major          - Incrementa versión major (X.0.0)"
+    echo "  minor          - Incrementa versión minor (0.X.0)"
+    echo "  patch          - Incrementa versión patch (0.0.X)"
+    echo "  X.Y.Z          - Versión específica (ejemplo: 0.46.3)"
     echo ""
     echo -e "${BLUE}Ejemplos:${NC}"
-    echo "  ./release.sh 0.46.2"
-    echo "  ./release.sh 0.46.2 \"Telegram Bot integration and improvements\""
+    echo "  ./release.sh patch"
+    echo "  ./release.sh minor \"Nueva funcionalidad\""
+    echo "  ./release.sh major \"Breaking changes\""
+    echo "  ./release.sh 0.46.2 \"Versión específica\""
     echo ""
     echo -e "${BLUE}Nota:${NC} Si no se proporciona descripción, se usará una por defecto"
     exit 1
@@ -26,17 +68,31 @@ show_usage() {
 
 # Verificar argumentos
 if [ $# -lt 1 ]; then
-    echo -e "${RED}Error: Se requiere al menos la versión${NC}"
+    echo -e "${RED}Error: Se requiere versión o tipo de incremento${NC}"
     show_usage
 fi
 
-VERSION=$1
+VERSION_INPUT=$1
 DESCRIPTION=${2:-"Telegram Bot integration and improvements"}
 
-# Validar formato de versión (X.Y.Z)
-if ! [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo -e "${RED}Error: Formato de versión inválido${NC}"
-    echo "Formato esperado: X.Y.Z (ejemplo: 0.46.2)"
+# Obtener versión actual
+CURRENT_VERSION=$(get_current_version)
+
+# Determinar nueva versión
+if [[ $VERSION_INPUT =~ ^(major|minor|patch)$ ]]; then
+    VERSION=$(increment_version "$CURRENT_VERSION" "$VERSION_INPUT")
+    echo -e "${BLUE}Versión actual:${NC} ${CURRENT_VERSION}"
+    echo -e "${BLUE}Incremento:${NC} ${VERSION_INPUT}"
+    echo -e "${GREEN}Nueva versión:${NC} ${VERSION}"
+    echo ""
+elif [[ $VERSION_INPUT =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    VERSION=$VERSION_INPUT
+    echo -e "${BLUE}Versión actual:${NC} ${CURRENT_VERSION}"
+    echo -e "${GREEN}Nueva versión:${NC} ${VERSION}"
+    echo ""
+else
+    echo -e "${RED}Error: Formato inválido${NC}"
+    echo "Usa: major, minor, patch, o X.Y.Z (ejemplo: 0.46.2)"
     exit 1
 fi
 
