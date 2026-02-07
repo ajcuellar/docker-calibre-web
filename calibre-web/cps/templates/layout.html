@@ -68,9 +68,9 @@
           <ul class="nav navbar-nav navbar-right" id="main-nav">
             {% if current_user.is_authenticated or g.allow_anonymous %}
               {% if g.current_theme == 1 %}
-              <li class="dropdown"><a href="#" class="dropdown-toggle profileDrop" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><span class="glyphicon glyphicon-user"></span></a>
+              <li class="dropdown"><a href="#" class="dropdown-toggle profileDrop" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><span class="glyphicon glyphicon-user"></span> <span class="hidden-sm">{{current_user.name}}</span></a>
                 <ul class="dropdown-menu profileDropli">
-                    <li><a id="top_user" data-text="{{_('Account')}}" href="{{url_for('web.profile')}}" ><span class="glyphicon glyphicon-user"></span> <span class="hidden-sm">{{current_user.name}}</span></a></li>
+                    <li><a id="top_user" data-text="{{_('Account')}}" href="{{url_for('web.profile')}}" ><span class="glyphicon glyphicon-user"></span> <span class="hidden-sm">{{_('Account')}}</span></a></li>
                     {% if g.allow_registration and not current_user.is_authenticated %}
                     <li><a id="login" href="{{url_for('web.login')}}"><span class="glyphicon glyphicon-log-in"></span> {{_('Login')}}</a></li>
                     <li><a id="register" href="{{url_for('web.register')}}"><span class="glyphicon glyphicon-user"></span> {{_('Register')}}</a></li>
@@ -99,11 +99,24 @@
               {% if current_user.role_admin() %}
                 <li><a id="top_admin" data-text="{{_('Settings')}}" href="{{url_for('admin.admin')}}"><span class="glyphicon glyphicon-dashboard"></span> <span class="hidden-sm">{{_('Admin')}}</span></a></li>
               {% endif %}
-              {% if g.current_theme == 0 %}
-              <li><a id="top_user" data-text="{{_('Account')}}" href="{% if not current_user.is_anonymous %}{{url_for('web.profile')}}{% else %}{{url_for('web.login', next=(request.path + "?" + request.query_string.decode("utf-8")).rstrip("?"))}}{% endif %}"><span class="glyphicon glyphicon-user"></span> <span class="hidden-sm">{{current_user.name}}</span></a></li>
-                {% if not current_user.is_anonymous %}
-                <li><a id="logout" href="{{url_for('web.logout', next=(request.path + "?" + request.query_string.decode("utf-8")).rstrip("?"))}}"><span class="glyphicon glyphicon-log-out"></span> <span class="hidden-sm">{{_('Logout')}}</span></a></li>
-                {% endif %}
+              {% if g.current_theme == 0 or g.current_theme == 2 or g.current_theme == 3 or g.current_theme == 4 %}
+                <li class="dropdown">
+                  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
+                    <span class="glyphicon glyphicon-user"></span> <span class="hidden-xs">{{current_user.name}}</span>
+                    <span class="caret"></span>
+                  </a>
+                  <ul class="dropdown-menu">
+                    <li><a id="top_user" data-text="{{_('Account')}}" href="{% if not current_user.is_anonymous %}{{url_for('web.profile')}}{% else %}{{url_for('web.login', next=(request.path + "?" + request.query_string.decode("utf-8")).rstrip("?"))}}{% endif %}">
+                      <span class="glyphicon glyphicon-user"></span> {{_('Account')}}
+                    </a></li>
+                    {% if not current_user.is_anonymous %}
+                    <li role="separator" class="divider"></li>
+                    <li><a id="logout" href="{{url_for('web.logout', next=(request.path + "?" + request.query_string.decode("utf-8")).rstrip("?"))}}">
+                      <span class="glyphicon glyphicon-log-out"></span> {{_('Logout')}}
+                    </a></li>
+                    {% endif %}
+                  </ul>
+                </li>
               {% endif %}
             {% endif %}
             {% if g.allow_registration and not current_user.is_authenticated and g.current_theme == 0 %}
