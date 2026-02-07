@@ -103,30 +103,122 @@ echo "  Commit:      ${COMMIT_HASH}"
 echo "  Descripción: ${DESCRIPTION}"
 echo ""
 
-# Paso 5: Preguntar si hacer push
+# Paso 5: Preguntar si hacer push de Git
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${YELLOW}¿Deseas hacer push al repositorio remoto?${NC}"
 echo "  Esto subirá el commit y el tag"
-read -p "Push? (s/N): " -n 1 -r
+read -p "Push a GitHub? (s/N): " -n 1 -r
 echo
 echo ""
 
+PUSHED_TO_GITHUB=false
 if [[ $REPLY =~ ^[Ss]$ ]]; then
-    echo -e "${BLUE}5.${NC} Haciendo push..."
+    echo -e "${BLUE}5.${NC} Haciendo push a GitHub..."
     git push origin master
     git push origin "v${VERSION}"
     echo -e "${GREEN}✓${NC} Push completado"
     echo ""
-    echo -e "${GREEN}🚀 Release v${VERSION} publicado en GitHub${NC}"
-    echo ""
-    echo -e "${YELLOW}💡 Siguiente paso:${NC}"
-    echo "  Construir y publicar imagen Docker con:"
-    echo "  docker build -t ajcuellar/calibre-web:${VERSION} ."
-    echo "  docker push ajcuellar/calibre-web:${VERSION}"
+    PUSHED_TO_GITHUB=true
 else
     echo -e "${YELLOW}ℹ️  Para hacer push manualmente:${NC}"
     echo "  git push origin master"
     echo "  git push origin v${VERSION}"
+    echo ""
+fi
+
+# Paso 6: Preguntar si construir y publicar imagen Docker
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${YELLOW}¿Deseas construir y publicar la imagen Docker?${NC}"
+echo "  Esto construirá la imagen con la nueva versión"
+read -p "Build & Push Docker? (s/N): " -n 1 -r
+echo
+echo ""
+
+if [[ $REPLY =~ ^[Ss]$ ]]; then
+    echo -e "${BLUE}6.${NC} Construyendo imagen Docker..."
+    echo ""
+    
+    # Build imagen con múltiples tags
+    docker build --no-cache --pull \
+        -t ajcuellar/calibre-web:v${VERSION} \
+        -t ajcuellar/calibre-web:latest \
+        .
+    
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Error construyendo imagen Docker${NC}"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}✓${NC} Imagen construida exitosamente"
+    echo ""
+    
+    # Mostrar imágenes creadas
+    echo -e "${BLUE}Imágenes creadas:${NC}"
+    docker images ajcuellar/calibre-web | head -3
+    echo ""
+    
+    # Preguntar dónde publicar
+    echo -e "${YELLOW}¿Dónde deseas publicar la imagen?${NC}"
+    echo "  1) Docker Hub"
+    echo "  2) GitHub Container Registry (ghcr.io)"
+    echo "  3) Ambos"
+    echo "  4) No publicar (solo construir)"
+    read -p "Elige (1-4): " -n 1 -r
+    echo
+    echo ""
+    
+    case $REPLY in
+        1)
+            echo -e "${BLUE}Publicando en Docker Hub...${NC}"
+            docker login
+            docker push ajcuellar/calibre-web:v${VERSION}
+            docker push ajcuellar/calibre-web:latest
+            echo -e "${GREEN}✓${NC} Publicado en Docker Hub"
+            echo -e "${BLUE}URL:${NC} https://hub.docker.com/r/ajcuellar/calibre-web"
+            ;;
+        2)
+            echo -e "${BLUE}Publicando en GitHub Container Registry...${NC}"
+            docker login ghcr.io -u ajcuellar
+            docker tag ajcuellar/calibre-web:v${VERSION} ghcr.io/ajcuellar/calibre-web:v${VERSION}
+            docker tag ajcuellar/calibre-web:latest ghcr.io/ajcuellar/calibre-web:latest
+            docker push ghcr.io/ajcuellar/calibre-web:v${VERSION}
+            docker push ghcr.io/ajcuellar/calibre-web:latest
+            echo -e "${GREEN}✓${NC} Publicado en GitHub Container Registry"
+            echo -e "${BLUE}URL:${NC} https://github.com/ajcuellar/docker-calibre-web/pkgs/container/calibre-web"
+            ;;
+        3)
+            echo -e "${BLUE}Publicando en Docker Hub...${NC}"
+            docker login
+            docker push ajcuellar/calibre-web:v${VERSION}
+            docker push ajcuellar/calibre-web:latest
+            echo -e "${GREEN}✓${NC} Publicado en Docker Hub"
+            
+            echo ""
+            echo -e "${BLUE}Publicando en GitHub Container Registry...${NC}"
+            docker login ghcr.io -u ajcuellar
+            docker tag ajcuellar/calibre-web:v${VERSION} ghcr.io/ajcuellar/calibre-web:v${VERSION}
+            docker tag ajcuellar/calibre-web:latest ghcr.io/ajcuellar/calibre-web:latest
+            docker push ghcr.io/ajcuellar/calibre-web:v${VERSION}
+            docker push ghcr.io/ajcuellar/calibre-web:latest
+            echo -e "${GREEN}✓${NC} Publicado en ambos registros"
+            ;;
+        4)
+            echo -e "${YELLOW}ℹ️  Imagen construida pero no publicada${NC}"
+            ;;
+        *)
+            echo -e "${YELLOW}ℹ️  Opción inválida. Imagen construida pero no publicada${NC}"
+            ;;
+    esac
+    echo ""
+    
+    if [ "$PUSHED_TO_GITHUB" = true ]; then
+        echo -e "${GREEN}🚀 Release v${VERSION} completamente publicado${NC}"
+    fi
+else
+    echo -e "${YELLOW}ℹ️  Para construir Docker manualmente:${NC}"
+    echo "  docker build -t ajcuellar/calibre-web:v${VERSION} -t ajcuellar/calibre-web:latest ."
+    echo "  docker push ajcuellar/calibre-web:v${VERSION}"
+    echo "  docker push ajcuellar/calibre-web:latest"
 fi
 
 echo ""
