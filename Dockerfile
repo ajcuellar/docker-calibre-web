@@ -62,7 +62,7 @@ RUN \
     /app/calibre-web
 
 # Copy local calibre-web source code
-COPY ../calibre-web/ /app/calibre-web/
+COPY calibre-web/ /app/calibre-web/
 
 # Update version to match actual release from build args
 RUN \
@@ -158,7 +158,7 @@ RUN \
     /root/.cache
 
 # add local files
-COPY docker-calibre-web/root/ /
+COPY root/ /
 
 # add unrar
 COPY --from=unrar /usr/bin/unrar-ubuntu /usr/bin/unrar
