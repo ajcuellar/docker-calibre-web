@@ -38,8 +38,18 @@ CACHE_DURATION_MINUTES = 15  # Update stats every 15 minutes
 
 def get_cache_path():
     """Get the path to the cache file"""
-    cache_dir = config.config_calibre_dir or os.getcwd()
-    return os.path.join(cache_dir, CACHE_FILE)
+    try:
+        # Check if config is available and has the attribute
+        if hasattr(config, 'config_calibre_dir') and config.config_calibre_dir:
+            cache_dir = config.config_calibre_dir
+        else:
+            # Fallback to a safe default
+            cache_dir = os.path.join(os.path.expanduser("~"), ".calibre-web")
+            os.makedirs(cache_dir, exist_ok=True)
+        return os.path.join(cache_dir, CACHE_FILE)
+    except Exception:
+        # Last resort fallback
+        return os.path.join(os.getcwd(), CACHE_FILE)
 
 
 def load_cached_stats():
@@ -90,6 +100,11 @@ def save_cached_stats(stats):
 def get_library_stats():
     """Get basic library statistics"""
     try:
+        # Check if database is available
+        if not calibre_db or not calibre_db.session:
+            log.debug("Database not available for library stats")
+            return {}
+            
         stats = {
             'total_books': calibre_db.session.query(db.Books).count(),
             'total_authors': calibre_db.session.query(db.Authors).count(),
@@ -124,6 +139,11 @@ def get_library_stats():
 def get_user_stats():
     """Get user statistics"""
     try:
+        # Check if database is available
+        if not ub or not ub.session:
+            log.debug("User database not available for user stats")
+            return {}
+            
         total_users = ub.session.query(ub.User).count()
 
         stats = {
@@ -353,6 +373,17 @@ def clear_stats_cache():
 def initialize_cache():
     """Initialize cache on startup if it doesn't exist"""
     try:
+        # Don't initialize if we're not in an application context
+        from flask import has_app_context
+        if not has_app_context():
+            log.debug("Skipping cache initialization - no app context")
+            return
+            
+        # Check if database is properly initialized
+        if not hasattr(config, 'config_calibre_dir') or not config.config_calibre_dir:
+            log.debug("Skipping cache initialization - config not ready")
+            return
+            
         cache_path = get_cache_path()
         if not os.path.exists(cache_path):
             log.info("Initializing statistics cache on startup...")
@@ -361,8 +392,6 @@ def initialize_cache():
         log.warning(f"Could not initialize statistics cache: {e}")
 
 
-# Auto-initialize on import (will run when the module is first loaded)
-try:
-    initialize_cache()
-except:
-    pass  # Don't fail if initialization fails
+# Don't auto-initialize on import - let the application initialize it when ready
+# This prevents errors when importing the module before Flask app is ready
+# Call initialize_cache() manually from app startup if needed
