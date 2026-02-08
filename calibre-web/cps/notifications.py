@@ -24,6 +24,8 @@ Supports: Email, WhatsApp (Twilio), Telegram, Web Push
 
 import smtplib
 import requests
+import threading
+from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import List, Dict, Optional
@@ -33,6 +35,12 @@ from flask_babel import gettext as _
 from . import logger, config, ub
 
 log = logger.create()
+
+# Global state for batching notifications
+_pending_books = []
+_notification_timer = None
+_timer_lock = threading.Lock()
+NOTIFICATION_DELAY = 300  # 5 minutes in seconds
 
 
 class NotificationService:
@@ -54,6 +62,32 @@ class NotificationService:
                 log.debug(f"Could not generate book URL: {e}")
         
         return base_message
+    
+    @staticmethod
+    def get_multiple_books_message(books: List[Dict]) -> str:
+        """Generate a formatted message for multiple new books"""
+        count = len(books)
+        if count == 0:
+            return ""
+        
+        if count == 1:
+            book = books[0]
+            return NotificationService.get_book_notification_message(
+                book['title'], book['authors'], book.get('book_id')
+            )
+        
+        # Multiple books
+        message = _("📚 %(count)s new books available!", count=count)
+        message += "\n\n"
+        
+        for i, book in enumerate(books[:10], 1):  # Limit to first 10
+            authors_str = ", ".join([author.name for author in book['authors']]) if book['authors'] else _("Unknown Author")
+            message += f"{i}. {book['title']} - {authors_str}\n"
+        
+        if count > 10:
+            message += _("\n... and %(more)s more books", more=count - 10)
+        
+        return message
     
     @staticmethod
     def is_enabled_for_user(user, notification_type: str) -> bool:
@@ -280,15 +314,16 @@ class NotificationManager:
     """Manager class to coordinate all notification services"""
     
     @staticmethod
-    def notify_new_book(book_title: str, authors, book_id=None):
+    def notify_multiple_books(books: List[Dict]):
         """
-        Send new book notifications to all users with notifications enabled
+        Send notifications for multiple new books to all users
         
         Args:
-            book_title: Title of the new book
-            authors: List of author objects
-            book_id: Book ID for generating URLs
+            books: List of book dictionaries with 'title', 'authors', 'book_id'
         """
+        if not books:
+            return 0
+        
         try:
             # Get all active users
             users = ub.session.query(ub.User).filter(
@@ -296,6 +331,12 @@ class NotificationManager:
             ).all()
             
             notification_count = 0
+            message = NotificationService.get_multiple_books_message(books)
+            
+            if len(books) == 1:
+                subject = _("New Book: %(title)s", title=books[0]['title'])
+            else:
+                subject = _("%(count)s New Books Available", count=len(books))
             
             for user in users:
                 if not user.notification_preferences:
@@ -306,43 +347,113 @@ class NotificationManager:
                 
                 # Send email notification
                 if new_books_prefs.get('email', False):
-                    if EmailNotificationService.send_new_book_notification(user, book_title, authors, book_id):
-                        notification_count += 1
+                    try:
+                        if EmailNotificationService.send_notification(user, subject, message):
+                            notification_count += 1
+                    except Exception as e:
+                        log.error(f"Error sending email to {user.name}: {e}")
                 
                 # Send WhatsApp notification
-                if new_books_prefs.get('whatsapp', False):
-                    if WhatsAppNotificationService.send_new_book_notification(user, book_title, authors, book_id):
-                        notification_count += 1
+                if new_books_prefs.get('whatsapp', False) and user.phone_number:
+                    try:
+                        if WhatsAppNotificationService.send_notification(user.phone_number, message):
+                            notification_count += 1
+                    except Exception as e:
+                        log.error(f"Error sending WhatsApp to {user.name}: {e}")
                 
                 # Send Telegram notification
-                if new_books_prefs.get('telegram', False):
-                    if TelegramNotificationService.send_new_book_notification(user, book_title, authors, book_id):
-                        notification_count += 1
+                if new_books_prefs.get('telegram', False) and user.telegram_id:
+                    try:
+                        if TelegramNotificationService.send_notification(user.telegram_id, message):
+                            notification_count += 1
+                    except Exception as e:
+                        log.error(f"Error sending Telegram to {user.name}: {e}")
                 
                 # Send Web Push notification
                 if new_books_prefs.get('push', False):
-                    if WebPushNotificationService.send_new_book_notification(user, book_title, authors, book_id):
-                        notification_count += 1
+                    try:
+                        if WebPushNotificationService.send_new_book_notification(user, books[0]['title'], books[0]['authors'], books[0].get('book_id')):
+                            notification_count += 1
+                    except Exception as e:
+                        log.error(f"Error sending Web Push to {user.name}: {e}")
             
-            log.info(f"Sent {notification_count} notifications for new book: {book_title}")
+            if len(books) == 1:
+                log.info(f"Sent {notification_count} notifications for new book: {books[0]['title']}")
+            else:
+                log.info(f"Sent {notification_count} notifications for {len(books)} new books")
             return notification_count
             
         except Exception as e:
-            log.error(f"Error in notify_new_book: {e}")
+            log.error(f"Error in notify_multiple_books: {e}")
             return 0
 
 
-# Convenience function for easy import
+def _send_batched_notifications():
+    """Internal function to send batched notifications (called by timer)"""
+    global _pending_books, _notification_timer
+    
+    with _timer_lock:
+        if _pending_books:
+            books_to_send = _pending_books.copy()
+            _pending_books = []
+            _notification_timer = None
+        else:
+            return
+    
+    # Send notifications outside the lock
+    try:
+        NotificationManager.notify_multiple_books(books_to_send)
+    except Exception as e:
+        log.error(f"Error sending batched notifications: {e}")
+
+
+def add_book_to_notification_queue(book_title: str, authors, book_id=None):
+    """
+    Add a book to the notification queue. Notifications will be sent in batch
+    after NOTIFICATION_DELAY seconds of inactivity.
+    
+    Args:
+        book_title: Title of the new book
+        authors: List of author objects or author objects with .name attribute
+        book_id: Optional book ID
+    """
+    global _pending_books, _notification_timer
+    
+    # Convert authors to a list if it's a single object
+    if not isinstance(authors, list):
+        authors = [authors]
+    
+    book_info = {
+        'title': book_title,
+        'authors': authors,
+        'book_id': book_id,
+        'added_at': datetime.now()
+    }
+    
+    with _timer_lock:
+        _pending_books.append(book_info)
+        
+        # Cancel existing timer if any
+        if _notification_timer is not None:
+            _notification_timer.cancel()
+        
+        # Start new timer
+        _notification_timer = threading.Timer(NOTIFICATION_DELAY, _send_batched_notifications)
+        _notification_timer.daemon = True
+        _notification_timer.start()
+        
+        log.debug(f"Book '{book_title}' added to notification queue. Total pending: {len(_pending_books)}")
+
+
+# Convenience function for easy import (backward compatibility)
 def send_new_book_notifications(book_title: str, authors, book_id=None):
     """
-    Convenience function to send new book notifications
+    Add a book to the notification queue for batched sending.
+    Notifications are sent 5 minutes after the last book is added.
     
     Args:
         book_title: Title of the new book
         authors: List of author objects  
         book_id: Optional book ID
-    
-    Returns:
-        Number of notifications sent
     """
-    return NotificationManager.notify_new_book(book_title, authors, book_id)
+    add_book_to_notification_queue(book_title, authors, book_id)

@@ -150,11 +150,7 @@ def upload():
                 # Send notifications to users
                 try:
                     from . import notifications
-                    notifications.send_new_book_notifications(
-                        title=title,
-                        authors=input_authors,
-                        book_id=book_id
-                    )
+                    notifications.send_new_book_notifications(title, input_authors, book_id)
                 except Exception as e:
                     log.error(f"Error sending notifications: {e}")
 
