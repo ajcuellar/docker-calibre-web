@@ -30,8 +30,12 @@ cps/cache
 *.log.*
 .key
 
+# Sensitive configuration files
 settings.yaml
 gdrive_credentials
 client_secrets.json
 gmail.json
 /.key
+.env
+.env.local
+.env.*.local
