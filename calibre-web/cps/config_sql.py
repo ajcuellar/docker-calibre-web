@@ -126,6 +126,15 @@ class _Settings(_Base):
     config_use_telegram = Column(Boolean, default=False)
     config_telegram_bot_token = Column(String, default='')
     config_telegram_bot_username = Column(String, default='')
+    
+    # Notification settings - Evolution API (WhatsApp)
+    config_use_evolution_api = Column(Boolean, default=False)
+    config_evolution_api_url = Column(String, default='http://localhost:8080')
+    config_evolution_api_key = Column(String, default='')
+    config_evolution_api_instance = Column(String, default='calibre-web')
+    
+    # Notification settings - Web Push (Simple, sans VAPID)
+    config_use_webpush = Column(Boolean, default=False)
 
     config_ldap_provider_url = Column(String, default='example.org')
     config_ldap_port = Column(SmallInteger, default=389)

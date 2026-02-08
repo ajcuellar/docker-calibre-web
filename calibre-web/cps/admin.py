@@ -1985,6 +1985,12 @@ def _configuration_update_helper():
         _config_string(to_save, "config_telegram_bot_token")
         _config_string(to_save, "config_telegram_bot_username")
 
+        # Evolution API configuration (WhatsApp notifications)
+        _config_checkbox(to_save, "config_use_evolution_api")
+        _config_string(to_save, "config_evolution_api_url")
+        _config_string(to_save, "config_evolution_api_key")
+        _config_string(to_save, "config_evolution_api_instance")
+
         _config_int(to_save, "config_updatechannel")
 
         # Reverse proxy login configuration
