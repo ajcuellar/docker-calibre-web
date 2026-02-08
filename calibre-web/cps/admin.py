@@ -2344,10 +2344,11 @@ def find_duplicates():
 
         # Convert to list format for template
         duplicate_groups = []
-        for (title, author), books in duplicates.items():
+        for (title, author, language), books in duplicates.items():
             group = {
                 'title': books[0].title,  # Use original title from first book
                 'author': books[0].authors[0].name if books[0].authors else "Unknown",
+                'language': language,
                 'books': []
             }
 
