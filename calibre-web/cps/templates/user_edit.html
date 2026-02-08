@@ -138,6 +138,45 @@
     </div>
     {% endif %}
     </div>
+    
+    <!-- Notification Settings -->
+    {% if not content.role_anonymous() %}
+    <div class="col-sm-12">
+      <h3>{{_('Notification Settings')}}</h3>
+    </div>
+    <div class="col-sm-6">
+      <div class="form-group">
+        <label for="phone_number">📱 {{_('Phone Number')}}</label>
+        <input type="tel" class="form-control" id="phone_number" name="phone_number" value="{% if content.phone_number %}{{ content.phone_number }}{% endif %}" placeholder="+34612345678">
+        <span class="help-block">{{_('International format with country code (e.g., +34612345678)')}}</span>
+      </div>
+      <div class="form-group">
+        <label for="telegram_id">💬 {{_('Telegram ID')}}</label>
+        <input type="text" class="form-control" id="telegram_id" name="telegram_id" value="{% if content.telegram_id %}{{ content.telegram_id }}{% endif %}" placeholder="@username or 123456789">
+        <span class="help-block">{{_('Your Telegram username or numeric ID')}}</span>
+      </div>
+    </div>
+    <div class="col-sm-6">
+      <label>{{_('Notify me via')}}</label>
+      <div class="form-group">
+        <input type="checkbox" name="notify_email" id="notify_email" {% if content.notification_preferences and content.notification_preferences.get('new_books', {}).get('email', False) %}checked{% endif %}>
+        <label for="notify_email">✉️ {{_('Email')}}</label>
+      </div>
+      <div class="form-group">
+        <input type="checkbox" name="notify_whatsapp" id="notify_whatsapp" {% if content.notification_preferences and content.notification_preferences.get('new_books', {}).get('whatsapp', False) %}checked{% endif %}>
+        <label for="notify_whatsapp">📱 {{_('WhatsApp')}}</label>
+      </div>
+      <div class="form-group">
+        <input type="checkbox" name="notify_telegram" id="notify_telegram" {% if content.notification_preferences and content.notification_preferences.get('new_books', {}).get('telegram', False) %}checked{% endif %}>
+        <label for="notify_telegram">💬 {{_('Telegram')}}</label>
+      </div>
+      <div class="form-group">
+        <input type="checkbox" name="notify_push" id="notify_push" {% if content.notification_preferences and content.notification_preferences.get('new_books', {}).get('push', False) %}checked{% endif %}>
+        <label for="notify_push">🔔 {{_('Web Push')}}</label>
+      </div>
+    </div>
+    {% endif %}
+    
     <div class="col-sm-12">
       <div id="user_submit" class="btn btn-default">{{_('Save')}}</div>
       {% if not profile %}

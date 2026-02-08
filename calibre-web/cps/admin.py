@@ -2261,6 +2261,33 @@ def _handle_edit_user(to_save, content, languages, translations, kobo_support):
                 content.name = check_username(to_save["name"])
             if to_save.get("kindle_mail") != content.kindle_mail:
                 content.kindle_mail = valid_email(to_save["kindle_mail"]) if to_save["kindle_mail"] else ""
+            
+            # Handle notification settings
+            if to_save.get("phone_number") != content.phone_number:
+                content.phone_number = to_save.get("phone_number", "")
+            
+            if to_save.get("telegram_id") != content.telegram_id:
+                content.telegram_id = to_save.get("telegram_id", "")
+            
+            # Update notification preferences
+            if not content.notification_preferences:
+                content.notification_preferences = {
+                    "new_books": {
+                        "email": False,
+                        "whatsapp": False,
+                        "telegram": False,
+                        "push": False
+                    }
+                }
+            
+            notification_prefs = content.notification_preferences.get('new_books', {})
+            notification_prefs['email'] = to_save.get("notify_email") == "on"
+            notification_prefs['whatsapp'] = to_save.get("notify_whatsapp") == "on"
+            notification_prefs['telegram'] = to_save.get("notify_telegram") == "on"
+            notification_prefs['push'] = to_save.get("notify_push") == "on"
+            content.notification_preferences['new_books'] = notification_prefs
+            flag_modified(content, "notification_preferences")
+            
         except Exception as ex:
             log.error(ex)
             flash(str(ex), category="error")

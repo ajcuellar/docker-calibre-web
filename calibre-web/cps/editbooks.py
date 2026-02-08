@@ -147,6 +147,17 @@ def upload():
                 # save data to database, reread data
                 calibre_db.session.commit()
 
+                # Send notifications to users
+                try:
+                    from . import notifications
+                    notifications.send_new_book_notifications(
+                        title=title,
+                        authors=input_authors,
+                        book_id=book_id
+                    )
+                except Exception as e:
+                    log.error(f"Error sending notifications: {e}")
+
                 if config.config_use_google_drive:
                     gdriveutils.updateGdriveCalibreFromLocal()
                 if error:

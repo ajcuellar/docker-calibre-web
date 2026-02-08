@@ -257,6 +257,18 @@ class User(UserBase, Base):
     remote_auth_token = relationship('RemoteAuthToken', backref='user', lazy='dynamic')
     view_settings = Column(JSON, default={})
     kobo_only_shelves_sync = Column(Integer, default=0)
+    
+    # Notification fields
+    phone_number = Column(String(20), default="")
+    telegram_id = Column(String(120), default="")
+    notification_preferences = Column(JSON, default={
+        "new_books": {
+            "email": True,
+            "whatsapp": False,
+            "telegram": False,
+            "push": False
+        }
+    })
 
 
 if oauth_support:
@@ -292,6 +304,9 @@ class Anonymous(AnonymousUserMixin, UserBase):
         self.id = None
         self.role = None
         self.name = None
+        self.phone_number = None
+        self.telegram_id = None
+        self.notification_preferences = None
         self.loadSettings()
 
     def loadSettings(self):
@@ -310,6 +325,9 @@ class Anonymous(AnonymousUserMixin, UserBase):
         self.allowed_column_value = data.allowed_column_value
         self.view_settings = data.view_settings
         self.kobo_only_shelves_sync = data.kobo_only_shelves_sync
+        self.phone_number = data.phone_number
+        self.telegram_id = data.telegram_id
+        self.notification_preferences = data.notification_preferences
 
     def role_admin(self):
         return False
@@ -709,6 +727,45 @@ def migrate_user_session_table(engine, _session):
             trans.commit()
 
 
+def migrate_user_table_notifications(engine, _session):
+    """Add notification fields to user table if they don't exist"""
+    try:
+        # Check if phone_number column exists
+        _session.query(exists().where(User.phone_number)).scalar()
+        _session.commit()
+    except (exc.OperationalError, exc.StatementError):
+        # Column doesn't exist, add all notification columns
+        try:
+            with engine.connect() as conn:
+                trans = conn.begin()
+                # Add phone_number column
+                try:
+                    conn.execute(text("ALTER TABLE user ADD column 'phone_number' VARCHAR(20) DEFAULT ''"))
+                except exc.OperationalError:
+                    pass  # Column might already exist
+                
+                # Add telegram_id column
+                try:
+                    conn.execute(text("ALTER TABLE user ADD column 'telegram_id' VARCHAR(120) DEFAULT ''"))
+                except exc.OperationalError:
+                    pass  # Column might already exist
+                
+                # Add notification_preferences column with default value
+                try:
+                    default_prefs = '{"new_books": {"email": true, "whatsapp": false, "telegram": false, "push": false}}'
+                    conn.execute(text("ALTER TABLE user ADD column 'notification_preferences' JSON"))
+                    # Set default values for existing users
+                    conn.execute(text(f"UPDATE user SET notification_preferences = '{default_prefs}' WHERE notification_preferences IS NULL"))
+                except exc.OperationalError:
+                    pass  # Column might already exist
+                
+                trans.commit()
+                print("Database migration: Notification fields added to user table")
+        except Exception as e:
+            print(f"Error during notification fields migration: {e}")
+            pass
+
+
 # Migrate database to current version, has to be updated after every database change. Currently, migration from
 # maybe 4/5 versions back to current should work.
 # Migration is done by checking if relevant columns are existing, and then adding rows with SQL commands
@@ -717,6 +774,7 @@ def migrate_Database(_session):
     add_missing_tables(engine, _session)
     migrate_registration_table(engine, _session)
     migrate_user_session_table(engine, _session)
+    migrate_user_table_notifications(engine, _session)
 
 
 def clean_database(_session):
